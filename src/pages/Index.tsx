@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { TopicCard } from "@/components/TopicCard";
 import { GameInterface } from "@/components/GameInterface";
 import { HelpDialog } from "@/components/HelpDialog";
-import { GAME_TOPICS, GAME_LEVELS, GameTopic, GameLevel, DiagramPoint } from "@/types/game";
+import { GAME_TOPICS, GAME_LEVELS, GameTopic, GameLevel, NumberedPosition } from "@/types/game";
 import { Microscope, BookOpen, Award, RotateCcw } from "lucide-react";
 
 // Import biological diagrams
@@ -21,199 +21,14 @@ const Index = () => {
   const [completedLevels, setCompletedLevels] = useState<Set<string>>(new Set());
   const [topicProgress, setTopicProgress] = useState<Record<string, number>>({});
 
-  // Generate diagram points for each topic/level combination
-  const getDiagramPoints = (topicId: string, level: number): DiagramPoint[] => {
+  // Generate numbered positions for each topic/level combination
+  const getNumberedPositions = (topicId: string, level: number): NumberedPosition[] => {
     const gameLevel = GAME_LEVELS[topicId]?.[level - 1];
     if (!gameLevel) return [];
 
-    // Predefined positions optimized for each biological diagram
-    const positions: Record<string, Record<number, {x: number, y: number}[]>> = {
-      digestive: {
-        1: [
-          { x: 20, y: 15 }, // Mouth
-          { x: 40, y: 45 }, // Stomach  
-          { x: 55, y: 70 }  // Intestine
-        ],
-        2: [
-          { x: 20, y: 15 }, // Mouth
-          { x: 30, y: 30 }, // Esophagus
-          { x: 40, y: 45 }, // Stomach
-          { x: 55, y: 60 }, // Small Intestine
-          { x: 65, y: 75 }  // Large Intestine
-        ],
-        3: [
-          { x: 20, y: 15 }, // Mouth
-          { x: 30, y: 30 }, // Esophagus
-          { x: 40, y: 45 }, // Stomach
-          { x: 50, y: 55 }, // Duodenum
-          { x: 55, y: 65 }, // Small Intestine
-          { x: 70, y: 75 }, // Large Intestine
-          { x: 75, y: 85 }  // Rectum
-        ],
-        4: [
-          { x: 20, y: 15 }, // Mouth
-          { x: 30, y: 30 }, // Esophagus
-          { x: 40, y: 45 }, // Stomach
-          { x: 15, y: 35 }, // Liver
-          { x: 25, y: 50 }, // Pancreas
-          { x: 35, y: 35 }, // Gallbladder
-          { x: 50, y: 55 }, // Duodenum
-          { x: 52, y: 65 }, // Jejunum
-          { x: 58, y: 68 }, // Ileum
-          { x: 70, y: 75 }, // Large Intestine
-          { x: 75, y: 85 }, // Rectum
-          { x: 78, y: 90 }  // Anus
-        ]
-      },
-      flower: {
-        1: [
-          { x: 45, y: 25 }, // Petal
-          { x: 50, y: 45 }, // Stamen
-          { x: 50, y: 55 }  // Carpel
-        ],
-        2: [
-          { x: 45, y: 25 }, // Petal
-          { x: 45, y: 35 }, // Sepal
-          { x: 50, y: 45 }, // Stamen
-          { x: 50, y: 55 }  // Carpel
-        ],
-        3: [
-          { x: 45, y: 25 }, // Petal
-          { x: 45, y: 35 }, // Sepal
-          { x: 48, y: 42 }, // Anther
-          { x: 48, y: 48 }, // Filament
-          { x: 52, y: 42 }, // Stigma
-          { x: 52, y: 48 }, // Style
-          { x: 50, y: 60 }  // Ovary
-        ],
-        4: [
-          { x: 45, y: 25 }, // Petal
-          { x: 45, y: 35 }, // Sepal
-          { x: 48, y: 42 }, // Anther
-          { x: 48, y: 48 }, // Filament
-          { x: 52, y: 42 }, // Stigma
-          { x: 52, y: 48 }, // Style
-          { x: 50, y: 60 }, // Ovary
-          { x: 50, y: 70 }, // Receptacle
-          { x: 50, y: 80 }  // Pedicel
-        ]
-      },
-      plantCell: {
-        1: [
-          { x: 50, y: 30 }, // Nucleus
-          { x: 70, y: 60 }, // Vacuole
-          { x: 20, y: 20 }  // Cell Wall
-        ],
-        2: [
-          { x: 50, y: 30 }, // Nucleus
-          { x: 70, y: 60 }, // Vacuole
-          { x: 20, y: 20 }, // Cell Wall
-          { x: 50, y: 50 }, // Cytoplasm
-          { x: 25, y: 25 }  // Cell Membrane
-        ],
-        3: [
-          { x: 50, y: 30 }, // Nucleus
-          { x: 70, y: 60 }, // Vacuole
-          { x: 20, y: 20 }, // Cell Wall
-          { x: 50, y: 50 }, // Cytoplasm
-          { x: 25, y: 25 }, // Cell Membrane
-          { x: 30, y: 40 }, // Chloroplast
-          { x: 75, y: 35 }  // Mitochondria
-        ],
-        4: [
-          { x: 50, y: 30 }, // Nucleus
-          { x: 70, y: 60 }, // Vacuole
-          { x: 20, y: 20 }, // Cell Wall
-          { x: 50, y: 50 }, // Cytoplasm
-          { x: 25, y: 25 }, // Cell Membrane
-          { x: 30, y: 40 }, // Chloroplast
-          { x: 75, y: 35 }, // Mitochondria
-          { x: 60, y: 40 }, // Ribosome
-          { x: 40, y: 60 }, // Golgi Apparatus
-          { x: 35, y: 25 }, // ER
-          { x: 15, y: 50 }  // Plasmodesmata
-        ]
-      },
-      foodWeb: {
-        1: [
-          { x: 25, y: 70 }, // Producer
-          { x: 75, y: 30 }  // Consumer
-        ],
-        2: [
-          { x: 25, y: 70 }, // Producer
-          { x: 50, y: 50 }, // Primary Consumer
-          { x: 75, y: 30 }  // Secondary Consumer
-        ],
-        3: [
-          { x: 25, y: 70 }, // Producer
-          { x: 45, y: 55 }, // Primary Consumer
-          { x: 65, y: 40 }, // Secondary Consumer
-          { x: 80, y: 20 }  // Tertiary Consumer
-        ],
-        4: [
-          { x: 25, y: 75 }, // Producer
-          { x: 40, y: 60 }, // Primary Consumer
-          { x: 60, y: 45 }, // Secondary Consumer
-          { x: 80, y: 25 }, // Tertiary Consumer
-          { x: 30, y: 85 }, // Decomposer
-          { x: 70, y: 60 }  // Omnivore
-        ]
-      },
-      photosynthesis: {
-        1: [
-          { x: 20, y: 15 }, // Sun
-          { x: 30, y: 30 }, // CO₂
-          { x: 70, y: 60 }  // Glucose
-        ],
-        2: [
-          { x: 20, y: 15 }, // Sun
-          { x: 30, y: 30 }, // CO₂
-          { x: 40, y: 70 }, // H₂O
-          { x: 70, y: 60 }  // Glucose
-        ],
-        3: [
-          { x: 20, y: 15 }, // Sun
-          { x: 30, y: 30 }, // CO₂
-          { x: 40, y: 70 }, // H₂O
-          { x: 70, y: 60 }, // Glucose
-          { x: 80, y: 40 }  // O₂
-        ],
-        4: [
-          { x: 20, y: 15 }, // Sun
-          { x: 30, y: 30 }, // CO₂
-          { x: 40, y: 70 }, // H₂O
-          { x: 70, y: 60 }, // Glucose
-          { x: 80, y: 40 }, // O₂
-          { x: 50, y: 45 }, // Chlorophyll
-          { x: 35, y: 50 }, // Stomata
-          { x: 55, y: 35 }  // Leaf Cell
-        ]
-      }
-    };
-
-    const topicPositions = positions[topicId]?.[level];
-    if (!topicPositions) {
-      // Fallback to circular distribution
-      return gameLevel.labels.map((label, index) => {
-        const angle = (index / gameLevel.labels.length) * 2 * Math.PI;
-        const radiusX = 30;
-        const radiusY = 25;
-        const centerX = 50;
-        const centerY = 50;
-        
-        return {
-          id: `point-${index}`,
-          x: Math.max(15, Math.min(85, centerX + radiusX * Math.cos(angle))),
-          y: Math.max(15, Math.min(85, centerY + radiusY * Math.sin(angle))),
-          correctLabel: label
-        };
-      });
-    }
-
     return gameLevel.labels.map((label, index) => ({
-      id: `point-${index}`,
-      x: topicPositions[index].x,
-      y: topicPositions[index].y,
+      id: `position-${index + 1}`,
+      number: index + 1,
       correctLabel: label
     }));
   };
@@ -289,7 +104,7 @@ const Index = () => {
     const level = levels[currentLevel - 1];
     const hasNextLevel = currentLevel < levels.length;
     const diagramImage = getDiagramImage(selectedTopic);
-    const diagramPoints = getDiagramPoints(selectedTopic, currentLevel);
+    const numberedPositions = getNumberedPositions(selectedTopic, currentLevel);
 
     return (
       <GameInterface
@@ -300,7 +115,7 @@ const Index = () => {
         onNextLevel={handleNextLevel}
         hasNextLevel={hasNextLevel}
         diagramImage={diagramImage}
-        diagramPoints={diagramPoints}
+        numberedPositions={numberedPositions}
       />
     );
   }
@@ -416,7 +231,7 @@ const Index = () => {
             <div>
               <h4 className="font-medium mb-2 text-foreground">🎯 Objective</h4>
               <p className="text-muted-foreground">
-                Drag and drop labels onto the correct parts of biological diagrams. 
+                Study numbered biological diagrams and drag labels to match each position. 
                 Each topic has 4 levels with increasing difficulty.
               </p>
             </div>

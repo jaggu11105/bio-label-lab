@@ -28,7 +28,7 @@ export interface GameState {
   currentLevel: number;
   score: number;
   completedLevels: Set<string>;
-  labelPositions: LabelPosition[];
+  numberedAssignments: Record<number, string>;
   draggedLabels: Set<string>;
   feedback: {
     show: boolean;
@@ -37,10 +37,9 @@ export interface GameState {
   };
 }
 
-export interface DiagramPoint {
+export interface NumberedPosition {
   id: string;
-  x: number;
-  y: number;
+  number: number;
   correctLabel: string;
   isAssigned?: boolean;
   assignedLabel?: string;

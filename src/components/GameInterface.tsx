@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, RotateCcw, CheckCircle, XCircle } from "lucide-react";
-import { GameTopic, GameLevel, DiagramPoint, LabelPosition } from "@/types/game";
+import { GameTopic, GameLevel, NumberedPosition, LabelPosition } from "@/types/game";
 import { HelpDialog } from "@/components/HelpDialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -16,7 +16,7 @@ interface GameInterfaceProps {
   onNextLevel: () => void;
   hasNextLevel: boolean;
   diagramImage: string;
-  diagramPoints: DiagramPoint[];
+  numberedPositions: NumberedPosition[];
 }
 
 export const GameInterface = ({ 
@@ -27,21 +27,20 @@ export const GameInterface = ({
   onNextLevel, 
   hasNextLevel,
   diagramImage,
-  diagramPoints 
+  numberedPositions 
 }: GameInterfaceProps) => {
-  const [assignedLabels, setAssignedLabels] = useState<LabelPosition[]>([]);
+  const [numberedAssignments, setNumberedAssignments] = useState<Record<number, string>>({});
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ show: boolean; type: 'success' | 'error'; message: string }>({
     show: false,
     type: 'success',
     message: ''
   });
-  const [completedPoints, setCompletedPoints] = useState<Set<string>>(new Set());
+  const [completedNumbers, setCompletedNumbers] = useState<Set<number>>(new Set());
   const [attempts, setAttempts] = useState(0);
-  const diagramRef = useRef<HTMLDivElement>(null);
 
   const availableLabels = level.labels.filter(
-    label => !assignedLabels.some(assigned => assigned.label === label)
+    label => !Object.values(numberedAssignments).includes(label)
   );
 
   const handleDragStart = (e: React.DragEvent, label: string) => {
@@ -55,57 +54,49 @@ export const GameInterface = ({
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = (e: React.DragEvent, point: DiagramPoint) => {
+  const handleDrop = (e: React.DragEvent, position: NumberedPosition) => {
     e.preventDefault();
     const label = e.dataTransfer.getData('text/plain');
     
-    if (!label || completedPoints.has(point.id)) return;
+    if (!label || numberedAssignments[position.number]) return;
 
     setAttempts(prev => prev + 1);
 
-    if (label === point.correctLabel) {
+    if (label === position.correctLabel) {
       // Correct match
-      const rect = diagramRef.current?.getBoundingClientRect();
-      if (rect) {
-        const newAssignment: LabelPosition = {
-          id: point.id,
-          label,
-          x: point.x,
-          y: point.y,
-          isCorrect: true
-        };
-        
-        setAssignedLabels(prev => [...prev, newAssignment]);
-        setCompletedPoints(prev => new Set([...prev, point.id]));
-        
-        setFeedback({
-          show: true,
-          type: 'success',
-          message: `Correct! ${label} is in the right place.`
-        });
+      setNumberedAssignments(prev => ({
+        ...prev,
+        [position.number]: label
+      }));
+      setCompletedNumbers(prev => new Set([...prev, position.number]));
+      
+      setFeedback({
+        show: true,
+        type: 'success',
+        message: `Correct! ${label} matches position ${position.number}.`
+      });
 
-        toast.success(`✓ ${label}`, {
-          description: "Correctly placed!"
-        });
+      toast.success(`✓ Position ${position.number}`, {
+        description: `${label} correctly placed!`
+      });
 
-        // Check if level is complete
-        if (completedPoints.size + 1 === level.totalLabels) {
-          const score = Math.max(0, 100 - Math.floor((attempts / level.totalLabels) * 10));
-          setTimeout(() => {
-            onLevelComplete(level.id, score);
-          }, 1500);
-        }
+      // Check if level is complete
+      if (completedNumbers.size + 1 === level.totalLabels) {
+        const score = Math.max(0, 100 - Math.floor((attempts / level.totalLabels) * 10));
+        setTimeout(() => {
+          onLevelComplete(level.id, score);
+        }, 1500);
       }
     } else {
       // Incorrect match
       setFeedback({
         show: true,
         type: 'error',
-        message: `Incorrect. ${label} doesn't belong here.`
+        message: `Incorrect. ${label} doesn't belong in position ${position.number}.`
       });
 
-      toast.error(`✗ ${label}`, {
-        description: "Try a different location!"
+      toast.error(`✗ Position ${position.number}`, {
+        description: "Try a different label!"
       });
     }
 
@@ -118,15 +109,15 @@ export const GameInterface = ({
   };
 
   const handleReset = () => {
-    setAssignedLabels([]);
-    setCompletedPoints(new Set());
+    setNumberedAssignments({});
+    setCompletedNumbers(new Set());
     setAttempts(0);
     setFeedback({ show: false, type: 'success', message: '' });
     toast.info("Game reset");
   };
 
-  const isCompleted = completedPoints.size === level.totalLabels;
-  const progress = (completedPoints.size / level.totalLabels) * 100;
+  const isCompleted = completedNumbers.size === level.totalLabels;
+  const progress = (completedNumbers.size / level.totalLabels) * 100;
 
   return (
     <div className="min-h-screen bg-game-bg p-4">
@@ -159,7 +150,7 @@ export const GameInterface = ({
               variant="outline" 
               size="sm" 
               onClick={handleReset}
-              disabled={assignedLabels.length === 0}
+              disabled={Object.keys(numberedAssignments).length === 0}
             >
               <RotateCcw className="h-4 w-4 mr-2" />
               Reset
@@ -173,7 +164,7 @@ export const GameInterface = ({
           <div className="flex justify-between items-center text-sm mb-2">
             <span className="text-muted-foreground">Progress</span>
             <span className="font-medium text-foreground">
-              {completedPoints.size}/{level.totalLabels} completed
+              {completedNumbers.size}/{level.totalLabels} completed
             </span>
           </div>
           <div className="progress-bar">
@@ -189,67 +180,67 @@ export const GameInterface = ({
           <div className="lg:col-span-2">
             <Card className="p-6 bg-game-diagram">
               <h3 className="text-lg font-semibold mb-4 text-center">
-                Drag labels to the correct positions
+                Study the numbered diagram
               </h3>
               
-              <div 
-                ref={diagramRef}
-                className="relative bg-white rounded-lg overflow-hidden"
-                style={{ aspectRatio: '4/3' }}
-              >
+              <div className="relative bg-white rounded-lg overflow-hidden" style={{ aspectRatio: '4/3' }}>
                 <img 
                   src={diagramImage} 
-                  alt={`${topic.title} diagram`}
+                  alt={`${topic.title} diagram with numbered positions`}
                   className="w-full h-full object-contain"
                 />
-                
-                {/* Diagram Points */}
-                {diagramPoints.map(point => (
-                  <div
-                    key={point.id}
-                    className={cn(
-                      "absolute diagram-pointer",
-                      completedPoints.has(point.id) && "bg-success border-success-foreground"
-                    )}
-                    style={{
-                      left: `${point.x}%`,
-                      top: `${point.y}%`,
-                      transform: 'translate(-50%, -50%)'
-                    }}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, point)}
-                  >
-                    {completedPoints.has(point.id) && (
-                      <CheckCircle className="w-3 h-3 text-success-foreground" />
-                    )}
-                  </div>
-                ))}
+              </div>
+              
+              <p className="text-sm text-muted-foreground mt-2 text-center">
+                The diagram shows numbered positions from 1 to {level.totalLabels}. 
+                Drag the correct labels to match each number in the answer area.
+              </p>
+            </Card>
+          </div>
 
-                {/* Assigned Labels */}
-                {assignedLabels.map(assignment => (
+          {/* Answer Area */}
+          <div className="space-y-4">
+            <Card className="p-4">
+              <h3 className="text-lg font-semibold mb-4">Answer Area</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Drag labels to their corresponding numbered positions:
+              </p>
+              
+              <div className="space-y-2">
+                {numberedPositions.map(position => (
                   <div
-                    key={assignment.id}
+                    key={position.id}
                     className={cn(
-                      "absolute px-2 py-1 rounded text-xs font-medium shadow-md",
-                      assignment.isCorrect 
-                        ? "bg-success text-success-foreground" 
-                        : "bg-destructive text-destructive-foreground"
+                      "flex items-center gap-3 p-3 border-2 border-dashed rounded-lg transition-all",
+                      numberedAssignments[position.number] 
+                        ? "border-success bg-success/10" 
+                        : "border-muted-foreground/30 hover:border-primary/50"
                     )}
-                    style={{
-                      left: `${assignment.x}%`,
-                      top: `${assignment.y + 8}%`,
-                      transform: 'translateX(-50%)'
-                    }}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, position)}
                   >
-                    {assignment.label}
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">
+                      {position.number}
+                    </div>
+                    <div className="flex-1 min-h-[2rem] flex items-center">
+                      {numberedAssignments[position.number] ? (
+                        <span className="font-medium text-success">
+                          {numberedAssignments[position.number]}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">
+                          Drop label here
+                        </span>
+                      )}
+                    </div>
+                    {numberedAssignments[position.number] && (
+                      <CheckCircle className="h-5 w-5 text-success" />
+                    )}
                   </div>
                 ))}
               </div>
             </Card>
-          </div>
 
-          {/* Labels Panel */}
-          <div className="space-y-4">
             <Card className="p-4">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 Available Labels
@@ -342,7 +333,7 @@ export const GameInterface = ({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Accuracy:</span>
                   <span className="font-medium">
-                    {attempts > 0 ? Math.round((completedPoints.size / attempts) * 100) : 0}%
+                    {attempts > 0 ? Math.round((completedNumbers.size / attempts) * 100) : 0}%
                   </span>
                 </div>
                 <div className="flex justify-between">
